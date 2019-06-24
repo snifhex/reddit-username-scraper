@@ -2,9 +2,11 @@ import os
 import csv
 import praw
 import json
+import pandas as pd
 
 usernameList = []
 stats = {}
+
 
 def auth():
     with open('credentials.json', 'r') as json_obj:
@@ -16,9 +18,15 @@ def auth():
     client = credentials['client_id']
     secret = credentials['client_secret']
     agent = credentials['user_agent']
-    reddit = praw.Reddit( username=username, password=password, 
-            client_id=client, client_secret=secret, user_agent=agent)
+    reddit = praw.Reddit(username=username, password=password,
+                         client_id=client, client_secret=secret, user_agent=agent)
     return reddit
+
+
+def usernameDf():
+    userDf = pd.read_csv('usernames.csv')
+    return userDf
+
 
 def writer():
     if os.path.isfile('usernames.csv'):
@@ -33,6 +41,7 @@ def writer():
             for username in usernameList:
                 writer.writerow((username,))
 
+
 def statWriter():
     if os.path.isfile('stat.csv'):
         with open('stat.csv', 'a') as doc:
@@ -44,30 +53,35 @@ def statWriter():
             writer = csv.writer(doc)
             for key, values in stats.items():
                 writer.writerow(('pages', 'usernames'))
-    
-        
-def getUsernames(reddit):
-    page = 0 
+
+
+def getUsernames(reddit, df):
+    page = 0
     for submission in reddit.front.hot():
         page += 1
         count = 0
         if submission.author not in usernameList:
-            usernameList.append(submission.author)
+            if submission.author not in df.iloc[:, 0].values:
+                usernameList.append(submission.author)
         for comment in submission.comments:
             try:
                 if comment.author != 'None' and comment.author not in usernameList:
-                    usernameList.append(comment.author)    
+                    if comment.author not in df.iloc[:, 0].values:
+                        usernameList.append(comment.author)
                 count += 1
             except:
                 break
         stats[page] = count
-        print(str(page)+ ":" +str(count))
+        print(str(page) + ":" + str(count))
+
 
 def main():
     reddit = auth()
-    getUsernames(reddit)
+    df = usernameDf()
+    getUsernames(reddit, df)
     writer()
     statWriter()
+
 
 if __name__ == '__main__':
     main()
